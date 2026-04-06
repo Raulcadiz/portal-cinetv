@@ -1,0 +1,477 @@
+openapi: 3.0.3
+
+info:
+  title: IPTVSur Portal API
+  description: |
+    API REST para gestionar listas IPTV y fuentes EPG por dispositivo Android.
+
+    ## Autenticación
+    Los endpoints de gestión (`/api/portal/*`) requieren un JWT Bearer token.
+    Obtén el token en `POST /api/admin/login`.
+
+    El endpoint de sincronización (`GET /api/sync`) **no requiere autenticación**
+    — es llamado directamente por la app Android.
+
+    ## Identificador de dispositivo
+    La app Android usa la **dirección MAC** del dispositivo como identificador.
+    La MAC se muestra en Ajustes → Sincronización y debe introducirse en el portal
+    para asociar listas a ese dispositivo.
+    Formato esperado: `AA:BB:CC:DD:EE:FF` (6 octetos hex separados por `:`).
+
+    > **Nota (Fase 5):** Se planea añadir un UUID de instalación adicional para
+    > identificación más robusta. La MAC seguirá siendo soportada.
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8000
+    description: Desarrollo local
+  - url: https://your-portal.com
+    description: Producción
+
+tags:
+  - name: sync
+    description: Endpoint de sincronización (sin autenticación, llamado por la app)
+  - name: portal — listas
+    description: Gestión de playlists IPTV por dispositivo
+  - name: portal — EPG
+    description: Gestión de fuentes EPG (XMLTV) por dispositivo
+  - name: auth
+    description: Autenticación de administrador
+
+paths:
+
+  # ── SYNC ──────────────────────────────────────────────────────────────────
+  /api/sync:
+    get:
+      tags: [sync]
+      summary: Sincronizar listas y EPG para un dispositivo
+      description: |
+        Llamado por la app Android al arrancar o manualmente.
+        Devuelve las listas y la fuente EPG asignadas al dispositivo,
+        o instrucción de borrar todo.
+      parameters:
+        - name: mac
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
+          example: "AA:BB:CC:DD:EE:FF"
+      responses:
+        "200":
+          description: Respuesta de sincronización
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+              examples:
+                none:
+                  summary: Sin cambios
+                  value: { "action": "none" }
+                clear:
+                  summary: Borrar todo
+                  value: { "action": "clear" }
+                update:
+                  summary: Actualizar con nuevas listas
+                  value:
+                    action: "update"
+                    playlists:
+                      - id: "uuid-1"
+                        type: "url"
+                        content: "https://example.com/lista.m3u8"
+                        name: "Lista principal"
+                      - id: "uuid-2"
+                        type: "file"
+                        content: "#EXTM3U\n#EXTINF:-1,Canal 1\nhttp://stream.example.com/1"
+                        name: "Lista local"
+                    epg:
+                      id: "uuid-epg"
+                      type: "url"
+                      content: "https://example.com/epg.xml"
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+  # ── PORTAL — LISTAS ───────────────────────────────────────────────────────
+  /api/portal/upload:
+    post:
+      tags: [portal — listas]
+      summary: Subir fichero .m3u8 para un dispositivo
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [mac, file]
+              properties:
+                mac:
+                  type: string
+                  description: Dirección MAC del dispositivo (AA:BB:CC:DD:EE:FF)
+                  example: "AA:BB:CC:DD:EE:FF"
+                name:
+                  type: string
+                  description: Nombre descriptivo de la lista
+                  example: "Mi lista IPTV"
+                file:
+                  type: string
+                  format: binary
+                  description: Fichero .m3u8 (debe empezar por #EXTM3U)
+      responses:
+        "201":
+          description: Lista guardada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistCreated'
+        "400":
+          description: Fichero inválido (no empieza por #EXTM3U o demasiado grande)
+          content:
+            application/json:
+              example: { "detail": "Invalid m3u8 file: missing #EXTM3U header" }
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+  /api/portal/url:
+    post:
+      tags: [portal — listas]
+      summary: Guardar URL de lista IPTV para un dispositivo
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveUrlRequest'
+      responses:
+        "201":
+          description: URL guardada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistCreated'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+  /api/portal/playlists:
+    get:
+      tags: [portal — listas]
+      summary: Listar playlists de un dispositivo
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: mac
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista de playlists (sin el contenido completo del m3u8)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlaylistMeta'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/portal/playlist/{playlist_id}:
+    delete:
+      tags: [portal — listas]
+      summary: Eliminar una playlist por ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: playlist_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Playlist eliminada
+          content:
+            application/json:
+              example: { "deleted": true }
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          description: Playlist no encontrada
+
+  /api/portal/clear:
+    delete:
+      tags: [portal — listas]
+      summary: Marcar todas las listas y EPG de un dispositivo para borrar
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRequest'
+      responses:
+        "200":
+          description: Pending clear activado
+          content:
+            application/json:
+              example: { "status": "pending_clear_set" }
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+  # ── PORTAL — EPG ──────────────────────────────────────────────────────────
+  /api/portal/epg/upload:
+    post:
+      tags: [portal — EPG]
+      summary: Subir fichero XMLTV para un dispositivo (reemplaza el anterior)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [mac, file]
+              properties:
+                mac:
+                  type: string
+                  example: "AA:BB:CC:DD:EE:FF"
+                file:
+                  type: string
+                  format: binary
+                  description: Fichero XMLTV (.xml o .gz)
+      responses:
+        "201":
+          description: EPG guardado (upsert)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpgCreated'
+        "400":
+          description: Fichero inválido
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/portal/epg/url:
+    post:
+      tags: [portal — EPG]
+      summary: Guardar URL de EPG XMLTV para un dispositivo (reemplaza el anterior)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveEpgUrlRequest'
+      responses:
+        "201":
+          description: URL EPG guardada (upsert)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpgCreated'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/portal/epg:
+    get:
+      tags: [portal — EPG]
+      summary: Obtener fuente EPG de un dispositivo
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: mac
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fuente EPG actual o null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EpgMeta'
+                  - type: "null"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [portal — EPG]
+      summary: Eliminar fuente EPG de un dispositivo
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRequest'
+      responses:
+        "200":
+          description: EPG eliminado (idempotente)
+          content:
+            application/json:
+              example: { "deleted": true }
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  /api/admin/login:
+    post:
+      tags: [auth]
+      summary: Login de administrador — obtener JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "200":
+          description: Token JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        "401":
+          description: Credenciales incorrectas
+
+# ── COMPONENTS ────────────────────────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Token JWT requerido o inválido
+      content:
+        application/json:
+          example: { "detail": "Not authenticated" }
+    ValidationError:
+      description: Error de validación en los parámetros
+      content:
+        application/json:
+          example:
+            detail:
+              - loc: ["query", "device_id"]
+                msg: "Field required"
+                type: "missing"
+
+  schemas:
+
+    SyncResponse:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [none, clear, update]
+        playlists:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncPlaylistItem'
+        epg:
+          oneOf:
+            - $ref: '#/components/schemas/SyncEpgItem'
+            - type: "null"
+
+    SyncPlaylistItem:
+      type: object
+      required: [id, type, content]
+      properties:
+        id:    { type: integer }
+        type:  { type: string, enum: [file, url] }
+        content: { type: string }
+        name:  { type: string }
+
+    SyncEpgItem:
+      type: object
+      required: [id, type, content]
+      properties:
+        id:    { type: integer }
+        type:  { type: string, enum: [file, url] }
+        content: { type: string }
+
+    PlaylistCreated:
+      type: object
+      properties:
+        id:   { type: integer }
+        mac:  { type: string }
+        type: { type: string, enum: [file, url] }
+
+    PlaylistMeta:
+      type: object
+      properties:
+        id:         { type: integer }
+        mac:        { type: string }
+        type:       { type: string, enum: [file, url] }
+        name:       { type: string }
+        created_at: { type: string, format: date-time }
+
+    EpgCreated:
+      type: object
+      properties:
+        id:   { type: integer }
+        mac:  { type: string }
+        type: { type: string, enum: [file, url] }
+
+    EpgMeta:
+      type: object
+      properties:
+        id:         { type: integer }
+        mac:        { type: string }
+        type:       { type: string, enum: [file, url] }
+        content_preview: { type: string, description: "URL or filename preview" }
+        created_at: { type: string, format: date-time }
+
+    SaveUrlRequest:
+      type: object
+      required: [mac, url]
+      properties:
+        mac:  { type: string, example: "AA:BB:CC:DD:EE:FF" }
+        url:  { type: string, format: uri, example: "https://example.com/lista.m3u8" }
+        name: { type: string, example: "Mi lista" }
+
+    SaveEpgUrlRequest:
+      type: object
+      required: [mac, url]
+      properties:
+        mac: { type: string, example: "AA:BB:CC:DD:EE:FF" }
+        url: { type: string, format: uri, example: "https://example.com/epg.xml" }
+
+    DeviceRequest:
+      type: object
+      required: [mac]
+      properties:
+        mac: { type: string, example: "AA:BB:CC:DD:EE:FF" }
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, example: "admin" }
+        password: { type: string, example: "your_password" }
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        token_type:   { type: string, example: "bearer" }

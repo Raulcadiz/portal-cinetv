@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cine Tv — Portal Admin</title>
+  <link rel="stylesheet" href="../styles/main.css" />
+</head>
+<body>
+  <header>
+    <h1>📺 Cine Tv Portal</h1>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span id="admin-name" class="text-muted" style="font-size:.875rem;color:#dbeafe;"></span>
+      <button id="logout-btn" class="btn btn-ghost btn-sm">Salir</button>
+    </div>
+  </header>
+
+  <!-- Stats bar -->
+  <div id="stats-bar" class="stats-bar hidden">
+    <div class="stat-item"><span id="stat-users">—</span><small>Usuarios</small></div>
+    <div class="stat-item"><span id="stat-active">—</span><small>Suscritos</small></div>
+    <div class="stat-item"><span id="stat-codes">—</span><small>Códigos disp.</small></div>
+    <div class="stat-item"><span id="stat-lists">—</span><small>Listas totales</small></div>
+  </div>
+
+  <div class="container" style="max-width:860px;">
+
+    <!-- ── Navegación principal ── -->
+    <div class="main-tabs" id="main-nav">
+      <button class="main-tab-btn active" data-panel="panel-devices">Dispositivos</button>
+      <button class="main-tab-btn" data-panel="panel-users">Usuarios</button>
+      <button class="main-tab-btn" data-panel="panel-codes">Códigos</button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         PANEL 1 — DISPOSITIVOS (gestión de listas + EPG)
+    ══════════════════════════════════════════════════════════════ -->
+    <div id="panel-devices" class="main-panel active">
+
+      <!-- Buscador dispositivo por device_id o MAC -->
+      <div class="card">
+        <h2>Buscar dispositivo</h2>
+        <div class="mac-row">
+          <div style="flex:1;">
+            <label for="device-input">Device ID o MAC del dispositivo</label>
+            <input type="text" id="device-input" placeholder="Ej: a1b2c3d4-… o AA:BB:CC:DD:EE:FF"
+                   autocomplete="off" spellcheck="false" />
+          </div>
+          <button id="load-btn" class="btn btn-primary">Cargar</button>
+        </div>
+      </div>
+
+      <!-- Gestión del dispositivo (oculto hasta cargar) -->
+      <div id="management" class="hidden">
+
+        <!-- Info de licencia -->
+        <div class="card" id="license-card">
+          <div class="section-header">
+            <h2>Licencia</h2>
+            <span id="license-badge" class="badge"></span>
+          </div>
+          <p id="license-info" class="text-muted mt-8" style="font-size:.875rem;"></p>
+          <button id="gift-btn" class="btn btn-primary btn-sm mt-12">🎁 Regalar suscripción</button>
+        </div>
+
+        <!-- Listas del dispositivo -->
+        <div class="card">
+          <div class="section-header">
+            <h2>Listas de reproducción</h2>
+          </div>
+          <div id="playlist-list"></div>
+
+          <div class="tabs mt-16" data-group="playlist-add">
+            <button class="tab-btn active" data-tab="tab-upload" data-group="playlist-add">Subir archivo</button>
+            <button class="tab-btn" data-tab="tab-url" data-group="playlist-add">Por URL</button>
+            <button class="tab-btn" data-tab="tab-xtream" data-group="playlist-add">Xtream Codes</button>
+          </div>
+
+          <!-- Tab: Upload -->
+          <div id="tab-upload" class="tab-panel active">
+            <div class="mt-8">
+              <label for="upload-name">Nombre (opcional)</label>
+              <input type="text" id="upload-name" placeholder="Mi lista" />
+            </div>
+            <div class="drop-zone mt-8" id="upload-drop">
+              <input type="file" id="upload-file-input" accept=".m3u,.m3u8" />
+              <p>Arrastra un archivo .m3u / .m3u8 aquí<br /><small>o haz clic para seleccionar</small></p>
+            </div>
+          </div>
+
+          <!-- Tab: URL -->
+          <div id="tab-url" class="tab-panel">
+            <div class="mt-8">
+              <label for="playlist-url-name">Nombre (opcional)</label>
+              <input type="text" id="playlist-url-name" placeholder="Mi lista URL" />
+            </div>
+            <div class="mt-8">
+              <label for="playlist-url">URL de la lista</label>
+              <input type="text" id="playlist-url" placeholder="http://..." />
+            </div>
+            <button id="save-url-btn" class="btn btn-primary btn-full mt-8">Guardar URL</button>
+          </div>
+
+          <!-- Tab: Xtream Codes -->
+          <div id="tab-xtream" class="tab-panel">
+            <div class="mt-8">
+              <label for="xtream-name">Nombre</label>
+              <input type="text" id="xtream-name" placeholder="Mi IPTV" />
+            </div>
+            <div class="mt-8">
+              <label for="xtream-server">Servidor</label>
+              <input type="text" id="xtream-server" placeholder="http://servidor.com:8080" />
+            </div>
+            <div class="mt-8">
+              <label for="xtream-user">Usuario</label>
+              <input type="text" id="xtream-user" placeholder="usuario" />
+            </div>
+            <div class="mt-8">
+              <label for="xtream-pass">Contraseña</label>
+              <input type="password" id="xtream-pass" placeholder="contraseña" />
+            </div>
+            <button id="save-xtream-btn" class="btn btn-primary btn-full mt-8">Guardar Xtream</button>
+          </div>
+        </div>
+
+        <!-- EPG -->
+        <div class="card" id="epg-section">
+          <div class="section-header">
+            <h2>Guía de programación (EPG)</h2>
+          </div>
+          <div id="epg-existing" class="hidden">
+            <div class="epg-info">
+              <span id="epg-type-badge" class="badge"></span>
+              <div class="content">
+                <div id="epg-preview" class="url-preview"></div>
+              </div>
+              <button id="delete-epg-btn" class="btn btn-danger btn-sm">✕</button>
+            </div>
+          </div>
+          <p id="epg-none" class="text-muted">Sin EPG configurado.</p>
+
+          <div class="tabs mt-16" data-group="epg-add">
+            <button class="tab-btn active" data-tab="tab-epg-upload" data-group="epg-add">Subir archivo</button>
+            <button class="tab-btn" data-tab="tab-epg-url" data-group="epg-add">Por URL</button>
+          </div>
+          <div id="tab-epg-upload" class="tab-panel active">
+            <div class="drop-zone mt-8" id="epg-drop">
+              <input type="file" id="epg-file-input" accept=".xml,.xml.gz,.gz" />
+              <p>Arrastra un archivo XMLTV aquí<br /><small>(.xml o .xml.gz)</small></p>
+            </div>
+          </div>
+          <div id="tab-epg-url" class="tab-panel">
+            <div class="mt-8">
+              <label for="epg-url">URL del EPG (XMLTV)</label>
+              <input type="text" id="epg-url" placeholder="http://..." />
+            </div>
+            <button id="save-epg-url-btn" class="btn btn-primary btn-full mt-8">Guardar URL EPG</button>
+          </div>
+        </div>
+
+        <!-- Zona de riesgo -->
+        <div class="card danger-zone">
+          <h2>Zona de riesgo</h2>
+          <p class="text-muted mt-8" style="font-size:.875rem;">
+            Borrar todos los datos del dispositivo en el próximo sync.
+          </p>
+          <button id="clear-btn" class="btn btn-danger mt-12">Limpiar dispositivo</button>
+        </div>
+
+      </div><!-- /#management -->
+    </div><!-- /#panel-devices -->
+
+
+    <!-- ══════════════════════════════════════════════════════════════
+         PANEL 2 — USUARIOS
+    ══════════════════════════════════════════════════════════════ -->
+    <div id="panel-users" class="main-panel hidden">
+      <div class="card">
+        <div class="section-header">
+          <h2>Usuarios registrados</h2>
+          <button id="refresh-users-btn" class="btn btn-ghost btn-sm">↺ Actualizar</button>
+        </div>
+        <div id="users-table-wrap">
+          <table class="data-table" id="users-table">
+            <thead>
+              <tr>
+                <th>Device ID</th>
+                <th>Registrado</th>
+                <th>Estado</th>
+                <th>Expira</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="5" class="text-muted" style="text-align:center;padding:20px;">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="users-pagination" class="pagination mt-12"></div>
+      </div>
+    </div><!-- /#panel-users -->
+
+
+    <!-- ══════════════════════════════════════════════════════════════
+         PANEL 3 — CÓDIGOS DE ACTIVACIÓN
+    ══════════════════════════════════════════════════════════════ -->
+    <div id="panel-codes" class="main-panel hidden">
+
+      <!-- Generar nuevos -->
+      <div class="card">
+        <h2>Generar códigos</h2>
+        <div class="form-row mt-12">
+          <div style="flex:1;">
+            <label for="code-quantity">Cantidad</label>
+            <input type="number" id="code-quantity" value="1" min="1" max="100" style="width:100%;" />
+          </div>
+          <div style="flex:2;">
+            <label for="code-duration">Duración (días)</label>
+            <input type="number" id="code-duration" value="365" min="1" style="width:100%;" />
+          </div>
+          <div style="flex:3;">
+            <label for="code-note">Nota (opcional)</label>
+            <input type="text" id="code-note" placeholder="Ej: regalo navidad" style="width:100%;" />
+          </div>
+        </div>
+        <button id="generate-codes-btn" class="btn btn-primary mt-12">Generar</button>
+        <div id="new-codes-result" class="hidden mt-12"></div>
+      </div>
+
+      <!-- Lista de códigos -->
+      <div class="card">
+        <div class="section-header">
+          <h2>Historial de códigos</h2>
+          <div style="display:flex;gap:8px;">
+            <select id="codes-filter" class="select-sm">
+              <option value="">Todos</option>
+              <option value="false">Disponibles</option>
+              <option value="true">Usados</option>
+            </select>
+            <button id="refresh-codes-btn" class="btn btn-ghost btn-sm">↺</button>
+          </div>
+        </div>
+        <table class="data-table" id="codes-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Días</th>
+              <th>Nota</th>
+              <th>Creado</th>
+              <th>Usado por</th>
+            </tr>
+          </thead>
+          <tbody id="codes-tbody">
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:20px;">Cargando…</td></tr>
+          </tbody>
+        </table>
+        <div id="codes-pagination" class="pagination mt-12"></div>
+      </div>
+    </div><!-- /#panel-codes -->
+
+  </div><!-- /.container -->
+
+  <!-- Loading overlay -->
+  <div id="overlay"><div class="spinner"></div></div>
+
+  <!-- Confirm clear dialog -->
+  <div id="clear-dialog" class="dialog-backdrop">
+    <div class="dialog">
+      <h3>¿Confirmar limpieza?</h3>
+      <p>Se borrarán todas las listas y el EPG del dispositivo en el próximo sync.</p>
+      <div class="dialog-actions">
+        <button id="clear-cancel-btn" class="btn btn-ghost">Cancelar</button>
+        <button id="clear-confirm-btn" class="btn btn-danger">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gift dialog -->
+  <div id="gift-dialog" class="dialog-backdrop">
+    <div class="dialog">
+      <h3>🎁 Regalar suscripción</h3>
+      <p id="gift-device-label" style="margin-bottom:12px;font-size:.875rem;color:#6b7280;"></p>
+      <label for="gift-days">Días a regalar</label>
+      <input type="number" id="gift-days" value="365" min="1" style="width:100%;margin-top:6px;" />
+      <div class="dialog-actions mt-12">
+        <button id="gift-cancel-btn" class="btn btn-ghost">Cancelar</button>
+        <button id="gift-confirm-btn" class="btn btn-primary">Regalar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Groups selection dialog -->
+  <div id="groups-dialog" class="dialog-backdrop">
+    <div class="dialog" style="max-width:500px;">
+      <h3>Seleccionar grupos</h3>
+      <p style="font-size:.875rem;color:#6b7280;margin-bottom:12px;">
+        Elige qué grupos de canales se mostrarán en la app. Sin selección = todos.
+      </p>
+      <div id="groups-loading" class="text-muted" style="text-align:center;padding:20px;">Cargando grupos…</div>
+      <div id="groups-list" class="groups-grid hidden"></div>
+      <div class="dialog-actions mt-12">
+        <button id="groups-all-btn" class="btn btn-ghost btn-sm">Todos</button>
+        <button id="groups-none-btn" class="btn btn-ghost btn-sm">Ninguno</button>
+        <div style="flex:1;"></div>
+        <button id="groups-cancel-btn" class="btn btn-ghost">Cancelar</button>
+        <button id="groups-save-btn" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script type="module" src="../js/portal.js"></script>
+</body>
+</html>
