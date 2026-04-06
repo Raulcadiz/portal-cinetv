@@ -1,10 +1,10 @@
 """JWT Bearer authentication for the admin portal API."""
 from datetime import datetime, timedelta, timezone
 
+import bcrypt as _bcrypt_lib
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,20 +12,22 @@ from src.api.models.admin_user import AdminUser
 from src.core.config import settings
 from src.core.database import get_db
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _bearer = HTTPBearer(auto_error=True)
 
 
-# ── Password helpers ──────────────────────────────────────────────────────────
+# ── Password helpers (bcrypt directo, sin passlib) ────────────────────────────
 
 def hash_password(plain: str) -> str:
     """Return a bcrypt hash of *plain*."""
-    return _pwd_context.hash(plain)
+    return _bcrypt_lib.hashpw(plain.encode("utf-8"), _bcrypt_lib.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
     """Return ``True`` if *plain* matches *hashed*."""
-    return _pwd_context.verify(plain, hashed)
+    try:
+        return _bcrypt_lib.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 # ── JWT helpers ───────────────────────────────────────────────────────────────

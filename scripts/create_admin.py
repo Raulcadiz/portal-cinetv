@@ -18,9 +18,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.api.middlewares.auth import hash_password
 from src.api.models.admin_user import AdminUser
 from src.core.database import create_tables, engine
+
+
+def _hash(password: str) -> str:
+    """Hash bcrypt compatible con passlib y con bcrypt>=4 directamente."""
+    try:
+        # Intentar con passlib primero (compatible con la API en ejecución)
+        from passlib.context import CryptContext
+        return CryptContext(schemes=["bcrypt"], deprecated="auto").hash(password)
+    except Exception:
+        # Fallback: usar bcrypt directamente
+        import bcrypt as _bcrypt
+        return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
 
 
 async def create_admin(username: str, password: str) -> None:
@@ -33,7 +44,7 @@ async def create_admin(username: str, password: str) -> None:
             await db.execute(select(AdminUser).where(AdminUser.username == username))
         ).scalar_one_or_none()
 
-        hashed = hash_password(password)
+        hashed = _hash(password)
         if existing:
             existing.hashed_password = hashed
             await db.commit()
