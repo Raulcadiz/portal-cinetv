@@ -199,3 +199,58 @@ async def set_active(
     if not ok:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     return {"activated": True}
+
+
+@router.get(
+    "/{list_id}/m3u",
+    summary="Proxy del contenido M3U con credenciales almacenadas",
+)
+async def get_list_m3u(
+    list_id: str,
+    device_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Devuelve el contenido M3U de la lista usando las credenciales almacenadas
+    en el servidor (sin exponerlas al cliente). Usado por la app Android.
+    """
+    import httpx
+    from fastapi.responses import Response
+
+    from src.api.services.m3u_parser import build_xtream_m3u_url, fetch_url_content
+
+    await _require_license(device_id, db)
+    ul = await user_list_service.get_list(list_id, device_id, db)
+    if not ul:
+        raise HTTPException(status_code=404, detail="Lista no encontrada")
+
+    # Lista subida como archivo — devolver contenido almacenado
+    if ul.list_type == "file":
+        return Response(
+            content=(ul.content or "").encode("utf-8"),
+            media_type="text/plain; charset=utf-8",
+        )
+
+    # Lista por URL directa — proxy transparente
+    if ul.list_type == "url" and ul.url:
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                resp = await client.get(ul.url)
+                resp.raise_for_status()
+                return Response(content=resp.content, media_type="text/plain; charset=utf-8")
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"No se pudo obtener la lista: {exc}")
+
+    # Lista Xtream Codes — construir URL con credenciales y hacer proxy
+    if ul.list_type == "xtream":
+        m3u_url = build_xtream_m3u_url(ul.xtream_server, ul.xtream_user, ul.xtream_pass)
+        try:
+            content = await fetch_url_content(m3u_url)
+            return Response(
+                content=content.encode("utf-8"),
+                media_type="text/plain; charset=utf-8",
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Error Xtream: {exc}")
+
+    raise HTTPException(status_code=400, detail="Tipo de lista no soportado")
