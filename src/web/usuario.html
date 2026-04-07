@@ -211,13 +211,25 @@
   <!-- ── Paso 1: Introducir Device ID ── -->
   <div class="card" id="step-device">
     <h2>🔑 Accede a tu cuenta</h2>
-    <p class="text-muted" style="margin-bottom:14px;">
-      Introduce el <strong>Device ID</strong> que aparece en la pestaña <em>Licencia</em> de la app Cine Tv.
-    </p>
+    <div style="background:#1e3a5f;border:1px solid #2563eb;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+      <p style="font-size:.85rem;margin-bottom:6px;color:#93c5fd;font-weight:600;">📱 ¿Dónde encuentro mi Device ID?</p>
+      <ol style="font-size:.8rem;color:#bfdbfe;padding-left:18px;line-height:1.8;">
+        <li>Abre la app <strong>Cine Tv</strong></li>
+        <li>Ve a la pestaña <strong>Licencia</strong></li>
+        <li>Toca el bloque <em>«ID del dispositivo»</em> para copiarlo</li>
+        <li>Pégalo aquí</li>
+      </ol>
+      <p style="font-size:.75rem;color:#93c5fd;margin-top:8px;">
+        Formato: <span class="monospace" style="color:#60a5fa;">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span> (36 caracteres con guiones)
+      </p>
+    </div>
     <label for="device-input">Device ID</label>
     <input type="text" id="device-input"
            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-           autocomplete="off" spellcheck="false" />
+           autocomplete="off" spellcheck="false" maxlength="36" />
+    <div id="device-error" style="display:none;color:#f87171;font-size:.8rem;margin-top:6px;">
+      ⚠️ Formato incorrecto. El ID debe tener exactamente 36 caracteres con guiones (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+    </div>
     <button id="load-btn" class="btn btn-primary btn-full mt-12">Cargar mi cuenta →</button>
   </div>
 
@@ -343,14 +355,27 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 
 // ── Cargar cuenta ─────────────────────────────────────────────────────────────
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 document.getElementById("load-btn").addEventListener("click", loadAccount);
 document.getElementById("device-input").addEventListener("keydown", e => {
   if (e.key === "Enter") loadAccount();
+});
+document.getElementById("device-input").addEventListener("input", () => {
+  document.getElementById("device-error").style.display = "none";
 });
 
 async function loadAccount() {
   const raw = document.getElementById("device-input").value.trim();
   if (!raw) { toast("Introduce tu Device ID", "error"); return; }
+
+  // Validar formato UUID
+  if (!UUID_RE.test(raw)) {
+    document.getElementById("device-error").style.display = "block";
+    toast("Device ID incorrecto — cópialo desde la app tocando el bloque «ID del dispositivo»", "error");
+    return;
+  }
+  document.getElementById("device-error").style.display = "none";
   currentDeviceId = raw;
   showOverlay();
   try {
