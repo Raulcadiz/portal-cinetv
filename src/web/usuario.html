@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cine Tv — Mi Cuenta</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.2rem; color: #60a5fa; }
+    header small { color: #64748b; font-size: .8rem; }
+
+    .container { max-width: 600px; margin: 0 auto; padding: 24px 16px; }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #f1f5f9; }
+
+    label { display: block; font-size: .8rem; color: #94a3b8; margin-bottom: 4px; }
+    input[type=text], input[type=password], input[type=number] {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 10px 12px;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: #3b82f6; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: .875rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-danger  { background: #ef4444; color: #fff; }
+    .btn-ghost   { background: #334155; color: #e2e8f0; }
+    .btn-sm      { padding: 6px 12px; font-size: .8rem; }
+    .btn-full    { width: 100%; margin-top: 10px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .badge-trial   { background: #fef3c7; color: #92400e; }
+    .badge-active  { background: #dcfce7; color: #14532d; }
+    .badge-expired { background: #fee2e2; color: #7f1d1d; }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .label { color: #94a3b8; font-size: .8rem; }
+    .info-row .value { font-size: .9rem; font-weight: 500; }
+
+    .list-item {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .list-item .name { flex: 1; font-size: .9rem; font-weight: 500; }
+    .list-type-badge {
+      font-size: .7rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .badge-url    { background: #dbeafe; color: #1e40af; }
+    .badge-xtream { background: #ede9fe; color: #5b21b6; }
+    .badge-file   { background: #dcfce7; color: #166534; }
+    .active-dot   { color: #22c55e; font-size: .75rem; }
+
+    .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      font-size: .82rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .tab-btn.active {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: #fff;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .hidden { display: none !important; }
+    .mt-8  { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .text-muted { color: #64748b; font-size: .85rem; }
+    .monospace  { font-family: monospace; font-size: .85rem; letter-spacing: .05em; }
+
+    /* Device ID box */
+    .device-box {
+      background: #0f172a;
+      border: 1px dashed #334155;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: monospace;
+      font-size: .85rem;
+      color: #60a5fa;
+      word-break: break-all;
+      cursor: pointer;
+    }
+    .device-box:hover { border-color: #3b82f6; }
+
+    /* Toast */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9999;
+    }
+    .toast {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: .875rem;
+      font-weight: 500;
+      animation: slideIn .2s ease;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+    }
+    .toast.success { border-color: #22c55e; color: #86efac; }
+    .toast.error   { border-color: #ef4444; color: #fca5a5; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* Overlay */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #overlay.visible { display: flex; }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #334155;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📺 Cine Tv</h1>
+  <small>Mi cuenta &amp; Mis listas</small>
+</header>
+
+<div class="container">
+
+  <!-- ── Paso 1: Introducir Device ID ── -->
+  <div class="card" id="step-device">
+    <h2>🔑 Accede a tu cuenta</h2>
+    <p class="text-muted" style="margin-bottom:14px;">
+      Introduce el <strong>Device ID</strong> que aparece en la pestaña <em>Licencia</em> de la app Cine Tv.
+    </p>
+    <label for="device-input">Device ID</label>
+    <input type="text" id="device-input"
+           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+           autocomplete="off" spellcheck="false" />
+    <button id="load-btn" class="btn btn-primary btn-full mt-12">Cargar mi cuenta →</button>
+  </div>
+
+  <!-- ── Contenido (oculto hasta cargar) ── -->
+  <div id="account" class="hidden">
+
+    <!-- Licencia -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <h2>📋 Licencia</h2>
+        <span id="lic-badge" class="badge"></span>
+      </div>
+      <div id="lic-rows"></div>
+
+      <!-- Activar código -->
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid #334155;">
+        <label for="code-input">Código de activación (XXXX-XXXX-XXXX)</label>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <input type="text" id="code-input" placeholder="XXXX-XXXX-XXXX"
+                 maxlength="14" style="text-transform:uppercase;letter-spacing:.1em;" />
+          <button id="activate-btn" class="btn btn-primary" style="white-space:nowrap;">Activar</button>
+        </div>
+        <p class="text-muted mt-8">Los códigos se obtienen comprando la suscripción (3€/año).</p>
+      </div>
+    </div>
+
+    <!-- Device ID -->
+    <div class="card">
+      <h2>📱 Tu dispositivo</h2>
+      <p class="text-muted mt-8" style="margin-bottom:8px;">
+        Tu Device ID (toca para copiar):
+      </p>
+      <div class="device-box" id="device-id-display" title="Clic para copiar"></div>
+    </div>
+
+    <!-- Listas -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <h2>📂 Mis listas IPTV</h2>
+        <button id="refresh-lists-btn" class="btn btn-ghost btn-sm">↺</button>
+      </div>
+      <div id="lists-container">
+        <p class="text-muted">Cargando…</p>
+      </div>
+
+      <!-- Añadir nueva -->
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid #334155;">
+        <h3 style="font-size:.9rem;margin-bottom:12px;color:#94a3b8;">Añadir nueva lista</h3>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="tab-url">URL / M3U</button>
+          <button class="tab-btn" data-tab="tab-xtream">Xtream Codes</button>
+        </div>
+
+        <!-- Tab URL -->
+        <div id="tab-url" class="tab-panel active">
+          <label>Nombre (opcional)</label>
+          <input type="text" id="url-name" placeholder="Mi lista" class="mt-8" />
+          <label style="margin-top:10px;">URL de la lista M3U</label>
+          <input type="text" id="url-url" placeholder="http://..." class="mt-8" />
+          <button id="add-url-btn" class="btn btn-primary btn-full">Añadir lista URL</button>
+        </div>
+
+        <!-- Tab Xtream -->
+        <div id="tab-xtream" class="tab-panel">
+          <label>Nombre</label>
+          <input type="text" id="xt-name" placeholder="Mi IPTV" class="mt-8" />
+          <label style="margin-top:10px;">Servidor</label>
+          <input type="text" id="xt-server" placeholder="http://servidor.com:8080" class="mt-8" />
+          <label style="margin-top:10px;">Usuario</label>
+          <input type="text" id="xt-user" placeholder="usuario" class="mt-8" />
+          <label style="margin-top:10px;">Contraseña</label>
+          <input type="password" id="xt-pass" placeholder="contraseña" class="mt-8" />
+          <button id="add-xtream-btn" class="btn btn-primary btn-full">Añadir Xtream</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#account -->
+
+</div><!-- /.container -->
+
+<div id="overlay"><div class="spinner"></div></div>
+<div id="toast-container"></div>
+
+<script>
+const API = "";
+let currentDeviceId = "";
+
+// ── Utils ──────────────────────────────────────────────────────────────────────
+
+function toast(msg, type = "success") {
+  const tc = document.getElementById("toast-container");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  tc.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function showOverlay()  { document.getElementById("overlay").classList.add("visible"); }
+function hideOverlay()  { document.getElementById("overlay").classList.remove("visible"); }
+
+async function apiFetch(url, opts = {}) {
+  const res = await fetch(API + url, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.detail || `Error ${res.status}`;
+    throw new Error(Array.isArray(msg) ? msg.map(e => e.msg).join(", ") : msg);
+  }
+  return data;
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────────
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ── Cargar cuenta ─────────────────────────────────────────────────────────────
+
+document.getElementById("load-btn").addEventListener("click", loadAccount);
+document.getElementById("device-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") loadAccount();
+});
+
+async function loadAccount() {
+  const raw = document.getElementById("device-input").value.trim();
+  if (!raw) { toast("Introduce tu Device ID", "error"); return; }
+  currentDeviceId = raw;
+  showOverlay();
+  try {
+    await Promise.all([loadLicense(), loadLists()]);
+    // Mostrar device ID
+    const box = document.getElementById("device-id-display");
+    box.textContent = currentDeviceId;
+    box.onclick = () => {
+      navigator.clipboard.writeText(currentDeviceId).then(() => toast("Device ID copiado"));
+    };
+    document.getElementById("account").classList.remove("hidden");
+  } catch (err) {
+    toast("Error: " + err.message, "error");
+  } finally {
+    hideOverlay();
+  }
+}
+
+// ── Licencia ──────────────────────────────────────────────────────────────────
+
+async function loadLicense() {
+  const lic = await apiFetch(`/api/device/license?device_id=${encodeURIComponent(currentDeviceId)}`);
+  const badge = document.getElementById("lic-badge");
+  const rows  = document.getElementById("lic-rows");
+
+  const statusLabel = lic.status === "active" ? "Activa" : lic.status === "trial" ? "Trial" : "Expirada";
+  badge.textContent = statusLabel;
+  badge.className = `badge badge-${lic.status === "active" ? "active" : lic.status === "trial" ? "trial" : "expired"}`;
+
+  const exp = lic.expires ? new Date(lic.expires + "Z").toLocaleDateString("es-ES") : "—";
+
+  rows.innerHTML = `
+    <div class="info-row">
+      <span class="label">Estado</span>
+      <span class="value">${
+        lic.status === "trial"   ? `Periodo de prueba (${lic.days_left} días restantes)` :
+        lic.status === "active"  ? `Suscripción activa (${lic.days_left} días restantes)` :
+        "Expirada — activa un código para continuar"
+      }</span>
+    </div>
+    <div class="info-row">
+      <span class="label">${lic.status === "trial" ? "Fin del trial" : "Expira"}</span>
+      <span class="value">${exp}</span>
+    </div>`;
+}
+
+// ── Activar código ────────────────────────────────────────────────────────────
+
+document.getElementById("activate-btn").addEventListener("click", async () => {
+  const code = document.getElementById("code-input").value.trim().toUpperCase();
+  if (!code) { toast("Introduce un código", "error"); return; }
+  showOverlay();
+  try {
+    const res = await apiFetch("/api/device/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: currentDeviceId, code }),
+    });
+    if (res.success) {
+      toast("✅ Suscripción activada hasta " + new Date(res.expires + "Z").toLocaleDateString("es-ES"));
+      document.getElementById("code-input").value = "";
+      await loadLicense();
+    } else {
+      toast(res.error || "Código inválido", "error");
+    }
+  } catch (err) {
+    toast(err.message, "error");
+  } finally {
+    hideOverlay();
+  }
+});
+
+// ── Listas ────────────────────────────────────────────────────────────────────
+
+async function loadLists() {
+  const lists = await apiFetch(`/api/device/lists?device_id=${encodeURIComponent(currentDeviceId)}`);
+  renderLists(lists);
+}
+
+function renderLists(lists) {
+  const container = document.getElementById("lists-container");
+  if (!lists.length) {
+    container.innerHTML = '<p class="text-muted">Sin listas. Añade una lista abajo.</p>';
+    return;
+  }
+  container.innerHTML = lists.map(ul => {
+    const typeClass = ul.list_type === "xtream" ? "badge-xtream" : ul.list_type === "file" ? "badge-file" : "badge-url";
+    const typeLabel = ul.list_type === "xtream" ? "Xtream" : ul.list_type === "file" ? "Archivo" : "URL";
+    const active    = ul.is_active ? '<span class="active-dot">● activa</span>' : "";
+    const groups    = ul.selected_groups ? `<span class="text-muted" style="font-size:.75rem;">${ul.selected_groups.length} grupos</span>` : "";
+    return `
+      <div class="list-item">
+        <div>
+          <div class="name">${ul.name || "Sin nombre"} ${active}</div>
+          ${groups}
+        </div>
+        <span class="list-type-badge ${typeClass}">${typeLabel}</span>
+        ${!ul.is_active ? `<button class="btn btn-ghost btn-sm activate-list-btn" data-id="${ul.id}">Activar</button>` : ""}
+        <button class="btn btn-danger btn-sm del-list-btn" data-id="${ul.id}">✕</button>
+      </div>`;
+  }).join("");
+
+  container.querySelectorAll(".del-list-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar esta lista?")) return;
+      showOverlay();
+      try {
+        await apiFetch(`/api/device/lists/${btn.dataset.id}?device_id=${encodeURIComponent(currentDeviceId)}`, { method: "DELETE" });
+        toast("Lista eliminada");
+        await loadLists();
+      } catch (err) { toast(err.message, "error"); }
+      finally { hideOverlay(); }
+    });
+  });
+
+  container.querySelectorAll(".activate-list-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      showOverlay();
+      try {
+        await apiFetch(`/api/device/lists/${btn.dataset.id}/activate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ device_id: currentDeviceId }),
+        });
+        toast("Lista activada ✓");
+        await loadLists();
+      } catch (err) { toast(err.message, "error"); }
+      finally { hideOverlay(); }
+    });
+  });
+}
+
+document.getElementById("refresh-lists-btn").addEventListener("click", async () => {
+  showOverlay();
+  try { await loadLists(); } catch (err) { toast(err.message, "error"); }
+  finally { hideOverlay(); }
+});
+
+// ── Añadir lista URL ──────────────────────────────────────────────────────────
+
+document.getElementById("add-url-btn").addEventListener("click", async () => {
+  const name = document.getElementById("url-name").value.trim();
+  const url  = document.getElementById("url-url").value.trim();
+  if (!url) { toast("Introduce la URL", "error"); return; }
+  showOverlay();
+  try {
+    await apiFetch("/api/device/lists/url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: currentDeviceId, name, url }),
+    });
+    toast("Lista añadida ✓");
+    document.getElementById("url-name").value = "";
+    document.getElementById("url-url").value  = "";
+    await loadLists();
+  } catch (err) { toast(err.message, "error"); }
+  finally { hideOverlay(); }
+});
+
+// ── Añadir lista Xtream ───────────────────────────────────────────────────────
+
+document.getElementById("add-xtream-btn").addEventListener("click", async () => {
+  const name   = document.getElementById("xt-name").value.trim();
+  const server = document.getElementById("xt-server").value.trim();
+  const user   = document.getElementById("xt-user").value.trim();
+  const pass   = document.getElementById("xt-pass").value;
+  if (!server || !user || !pass) { toast("Rellena servidor, usuario y contraseña", "error"); return; }
+  showOverlay();
+  try {
+    await apiFetch("/api/device/lists/xtream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: currentDeviceId, name, server, username: user, password: pass }),
+    });
+    toast("Xtream añadido ✓");
+    ["xt-name","xt-server","xt-user","xt-pass"].forEach(id => { document.getElementById(id).value = ""; });
+    await loadLists();
+  } catch (err) { toast(err.message, "error"); }
+  finally { hideOverlay(); }
+});
+</script>
+</body>
+</html>
