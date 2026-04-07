@@ -231,26 +231,38 @@ async def get_list_m3u(
             media_type="text/plain; charset=utf-8",
         )
 
-    # Lista por URL directa — proxy transparente
+    # Lista por URL directa — streaming proxy (no espera a descargar todo)
     if ul.list_type == "url" and ul.url:
-        try:
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-                resp = await client.get(ul.url)
-                resp.raise_for_status()
-                return Response(content=resp.content, media_type="text/plain; charset=utf-8")
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"No se pudo obtener la lista: {exc}")
+        from fastapi.responses import StreamingResponse
 
-    # Lista Xtream Codes — construir URL con credenciales y hacer proxy
+        async def _stream_url():
+            try:
+                async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+                    async with client.stream("GET", ul.url) as r:
+                        r.raise_for_status()
+                        async for chunk in r.aiter_bytes(chunk_size=65536):
+                            yield chunk
+            except Exception:
+                pass
+
+        return StreamingResponse(_stream_url(), media_type="text/plain; charset=utf-8")
+
+    # Lista Xtream Codes — construir URL con credenciales y hacer streaming proxy
     if ul.list_type == "xtream":
+        from fastapi.responses import StreamingResponse
+
         m3u_url = build_xtream_m3u_url(ul.xtream_server, ul.xtream_user, ul.xtream_pass)
-        try:
-            content = await fetch_url_content(m3u_url)
-            return Response(
-                content=content.encode("utf-8"),
-                media_type="text/plain; charset=utf-8",
-            )
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Error Xtream: {exc}")
+
+        async def _stream_xtream():
+            try:
+                async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+                    async with client.stream("GET", m3u_url) as r:
+                        r.raise_for_status()
+                        async for chunk in r.aiter_bytes(chunk_size=65536):
+                            yield chunk
+            except Exception:
+                pass
+
+        return StreamingResponse(_stream_xtream(), media_type="text/plain; charset=utf-8")
 
     raise HTTPException(status_code=400, detail="Tipo de lista no soportado")
