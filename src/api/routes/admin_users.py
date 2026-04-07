@@ -30,6 +30,12 @@ class GiftRequest(BaseModel):
     duration_days: int = 365
 
 
+class PushListRequest(BaseModel):
+    url: str
+    name: str = ""
+    set_active: bool = True
+
+
 # ── Usuarios ──────────────────────────────────────────────────────────────────
 
 @router.get(
@@ -225,6 +231,73 @@ async def list_codes(
             for c in codes
         ],
     }
+
+
+# ── Asignar lista a dispositivo ───────────────────────────────────────────────
+
+@router.post(
+    "/users/{device_id}/push-list",
+    summary="Asigna una lista M3U a un dispositivo (aparece en la app)",
+)
+async def push_list_to_device(
+    device_id: str,
+    body: PushListRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: AdminUser = Depends(get_current_admin),
+):
+    """
+    Crea una entrada UserList para el dispositivo indicado.
+    La lista aparece inmediatamente en «Mis listas» de la app.
+    Si ``set_active=True`` (por defecto), se marca como lista activa.
+    """
+    from src.api.services import user_list_service
+
+    result = await db.execute(select(AppUser).where(AppUser.device_id == device_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+
+    ul = await user_list_service.add_url_list(
+        device_id, body.name or "Lista asignada por admin", body.url, db
+    )
+    if body.set_active:
+        await user_list_service.set_active_list(ul.id, device_id, db)
+
+    return {
+        "id": ul.id,
+        "device_id": device_id,
+        "url": body.url,
+        "active": body.set_active,
+        "message": "Lista asignada correctamente",
+    }
+
+
+# ── Lista de listas de un dispositivo ─────────────────────────────────────────
+
+@router.get(
+    "/users/{device_id}/lists",
+    summary="Listas IPTV de un dispositivo",
+)
+async def get_device_lists(
+    device_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: AdminUser = Depends(get_current_admin),
+):
+    """Devuelve las listas IPTV configuradas para un dispositivo."""
+    from src.api.services import user_list_service
+
+    lists = await user_list_service.get_user_lists(device_id, db)
+    return [
+        {
+            "id": ul.id,
+            "name": ul.name,
+            "list_type": ul.list_type,
+            "url": ul.url,
+            "xtream_server": ul.xtream_server,
+            "is_active": ul.is_active,
+            "created_at": ul.created_at.isoformat() if ul.created_at else None,
+        }
+        for ul in lists
+    ]
 
 
 # ── Regalo de suscripción ─────────────────────────────────────────────────────
