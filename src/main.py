@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routes import admin, epg, portal, sync, device_auth, device_lists, admin_users, contenido
+from src.api.routes import admin, epg, portal, sync, device_auth, device_lists, admin_users
 from src.core.config import settings
 from src.core.database import create_tables
 
@@ -58,7 +58,6 @@ app.include_router(portal.router,       prefix="/api/portal",        tags=["port
 app.include_router(epg.router,          prefix="/api/portal/epg",    tags=["portal — EPG"])
 app.include_router(device_auth.router,  prefix="/api/device",        tags=["device — licencia"])
 app.include_router(device_lists.router, prefix="/api/device/lists",  tags=["device — listas"])
-app.include_router(contenido.router,       prefix="/api/portal",        tags=["portal — contenido"])
 
 # ── Static files (portal web) ─────────────────────────────────────────────────
 # Serve the web portal HTML/CSS/JS from src/web/
